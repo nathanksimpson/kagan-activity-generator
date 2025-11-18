@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { ApiKeyManager } from './components/ApiKeyManager';
 import { ImageUpload } from './components/ImageUpload';
 import { OCRProcessor } from './components/OCRProcessor';
-import { ParseModeSelector } from './components/ParseModeSelector';
 import { StructureSelector } from './components/StructureSelector';
 import { OutputDisplay } from './components/OutputDisplay';
 import { generateKaganActivity } from './services/geminiClient';
@@ -14,7 +13,7 @@ function App() {
   const [apiKeySet, setApiKeySet] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [parseMode, setParseMode] = useState<ParseMode>('questions');
+  const [detectedTypes, setDetectedTypes] = useState<ParseMode[]>([]);
   const [selectedStructure, setSelectedStructure] = useState<KaganStructure | null>(null);
   const [generatedOutput, setGeneratedOutput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,8 +37,9 @@ function App() {
     setError(null);
   };
 
-  const handleOCRComplete = (_text: string, parsedQuestions: Question[]) => {
+  const handleOCRComplete = (_text: string, parsedQuestions: Question[], types: ParseMode[]) => {
     setQuestions(parsedQuestions);
+    setDetectedTypes(types);
   };
 
   const handleGenerate = async () => {
@@ -94,29 +94,18 @@ function App() {
             />
           </section>
 
-          {/* Parse Mode Selector */}
-          {imageFile && (
-            <section className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                Step 2: Select Content Type
-              </h2>
-              <ParseModeSelector
-                selectedMode={parseMode}
-                onModeSelect={setParseMode}
-              />
-            </section>
-          )}
-
           {/* OCR Processing */}
           {imageFile && (
             <section className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                Step 3: Extract Text
+                Step 2: Extract and Detect Questions
               </h2>
+              <p className="text-sm text-gray-600 mb-4">
+                The app will automatically detect all question types (regular questions, fill-in-the-blank, ordering, matching, and graphic organizers) from your image.
+              </p>
               <OCRProcessor
                 imageFile={imageFile}
                 onOCRComplete={handleOCRComplete}
-                parseMode={parseMode}
               />
             </section>
           )}
@@ -125,7 +114,7 @@ function App() {
           {questions.length > 0 && (
             <section className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                Step 4: Select Kagan Structure
+                Step 3: Select Kagan Structure
               </h2>
               <StructureSelector
                 selectedStructure={selectedStructure}

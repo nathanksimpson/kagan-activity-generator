@@ -1,6 +1,11 @@
 import { Question } from '../types';
 
-export type ParseMode = 'questions' | 'fill-in-the-blank' | 'ordering' | 'matching' | 'graphic-organizer';
+export type ParseMode = 'questions' | 'fill-in-the-blank' | 'ordering' | 'matching' | 'graphic-organizer' | 'auto-detect';
+
+export interface DetectedQuestion {
+  question: Question;
+  type: ParseMode;
+}
 
 /**
  * Splits text into sentences
@@ -433,5 +438,43 @@ export function parseQuestions(text: string, mode: ParseMode = 'questions'): Que
  */
 export function isValidQuestion(text: string): boolean {
   return text.trim().length > 10 && (text.includes('?') || text.length > 20);
+}
+
+/**
+ * Auto-detects all question types from text and combines them
+ * Returns all unique questions found across all parse modes
+ */
+export function autoDetectQuestions(text: string): { questions: Question[]; detectedTypes: ParseMode[] } {
+  if (!text.trim()) {
+    return { questions: [], detectedTypes: [] };
+  }
+
+  const allQuestions: Question[] = [];
+  const detectedTypes: ParseMode[] = [];
+  const seen = new Set<string>();
+
+  // Try each parse mode (except auto-detect itself)
+  const modes: ParseMode[] = ['questions', 'fill-in-the-blank', 'ordering', 'matching', 'graphic-organizer'];
+  
+  for (const mode of modes) {
+    const questions = parseQuestions(text, mode);
+    if (questions.length > 0) {
+      detectedTypes.push(mode);
+      
+      // Add unique questions (avoid duplicates)
+      for (const q of questions) {
+        const normalized = q.text.toLowerCase().trim();
+        if (!seen.has(normalized)) {
+          seen.add(normalized);
+          allQuestions.push({
+            id: `auto-${allQuestions.length + 1}`,
+            text: q.text,
+          });
+        }
+      }
+    }
+  }
+
+  return { questions: allQuestions, detectedTypes };
 }
 

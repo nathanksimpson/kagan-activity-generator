@@ -1,24 +1,23 @@
 import { useState, useEffect } from 'react';
 import { createWorker } from 'tesseract.js';
-import { parseQuestions, ParseMode } from '../utils/questionParser';
+import { autoDetectQuestions, ParseMode } from '../utils/questionParser';
 import { Question } from '../types';
 
 interface OCRProcessorProps {
   imageFile: File | null;
-  onOCRComplete: (text: string, questions: Question[]) => void;
-  parseMode: ParseMode;
+  onOCRComplete: (text: string, questions: Question[], detectedTypes: ParseMode[]) => void;
 }
 
 export function OCRProcessor({
   imageFile,
   onOCRComplete,
-  parseMode,
 }: OCRProcessorProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [extractedText, setExtractedText] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [detectedTypes, setDetectedTypes] = useState<ParseMode[]>([]);
 
   useEffect(() => {
     if (!imageFile) {
@@ -57,11 +56,15 @@ export function OCRProcessor({
         URL.revokeObjectURL(imageUrl);
 
         setExtractedText(text);
-        const parsedQuestions = parseQuestions(text, parseMode);
-        setQuestions(parsedQuestions);
+        setStatus('Detecting question types...');
+        
+        // Auto-detect all question types
+        const { questions: detectedQuestions, detectedTypes: types } = autoDetectQuestions(text);
+        setQuestions(detectedQuestions);
+        setDetectedTypes(types);
 
         setStatus('OCR complete!');
-        onOCRComplete(text, parsedQuestions);
+        onOCRComplete(text, detectedQuestions, types);
       } catch (error) {
         console.error('OCR Error:', error);
         setStatus('Error processing image. Please try again.');
@@ -72,7 +75,7 @@ export function OCRProcessor({
     };
 
     processImage();
-  }, [imageFile, parseMode, onOCRComplete]);
+  }, [imageFile, onOCRComplete]);
 
   if (!imageFile) {
     return null;
@@ -101,6 +104,23 @@ export function OCRProcessor({
 
       {!isProcessing && extractedText && (
         <div className="space-y-4">
+          {detectedTypes.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <h3 className="text-sm font-semibold text-green-800 mb-1">
+                Detected Question Types:
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {detectedTypes.map((type) => (
+                  <span
+                    key={type}
+                    className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded"
+                  >
+                    {type.replace('-', ' ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">
               Extracted Text ({questions.length} items found):
