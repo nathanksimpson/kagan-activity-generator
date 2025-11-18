@@ -45,13 +45,13 @@ export function OCRProcessor({
         const {
           data: { text },
         } = await worker.recognize(imageUrl, {
-          logger: (m) => {
+          logger: (m: { status: string; progress: number }) => {
             if (m.status === 'recognizing text') {
               setProgress(Math.round(m.progress * 100));
               setStatus(`Recognizing text... ${Math.round(m.progress * 100)}%`);
             }
           },
-        });
+        } as any);
 
         await worker.terminate();
         URL.revokeObjectURL(imageUrl);

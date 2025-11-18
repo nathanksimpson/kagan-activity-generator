@@ -13,7 +13,6 @@ import { ParseMode } from './utils/questionParser';
 function App() {
   const [apiKeySet, setApiKeySet] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [ocrText, setOcrText] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [parseMode, setParseMode] = useState<ParseMode>('questions');
   const [selectedStructure, setSelectedStructure] = useState<KaganStructure | null>(null);
@@ -34,14 +33,12 @@ function App() {
 
   const handleImageSelect = (file: File) => {
     setImageFile(file);
-    setOcrText('');
     setQuestions([]);
     setGeneratedOutput('');
     setError(null);
   };
 
-  const handleOCRComplete = (text: string, parsedQuestions: Question[]) => {
-    setOcrText(text);
+  const handleOCRComplete = (_text: string, parsedQuestions: Question[]) => {
     setQuestions(parsedQuestions);
   };
 

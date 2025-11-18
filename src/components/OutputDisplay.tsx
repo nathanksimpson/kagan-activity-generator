@@ -117,7 +117,7 @@ export function OutputDisplay({ output, structure }: OutputDisplayProps) {
   );
 }
 
-function formatQuizStrips(output: string): JSX.Element[] {
+function formatQuizStrips(output: string): JSX.Element {
   // Parse the output to create individual strips
   const strips = output.split(/\n\s*\n/).filter((s) => s.trim().length > 0);
   
