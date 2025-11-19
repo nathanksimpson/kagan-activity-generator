@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { createWorker } from 'tesseract.js';
+import * as pdfjsLib from 'pdfjs-dist';
 import { autoDetectQuestions, ParseMode } from '../utils/questionParser';
 import { Question } from '../types';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface OCRProcessorProps {
   imageFile: File | null;
@@ -34,16 +38,63 @@ export function OCRProcessor({
       setQuestions([]);
 
       try {
-        const worker = await createWorker('eng');
+        const ocrWorker = await createWorker('eng');
+        let imageUrl: string;
+        let shouldRevokeUrl = false;
 
-        // Convert PDF to image if needed (for now, we'll handle PDFs as images)
-        // Note: For full PDF support, you'd need pdf-lib or similar
-        const imageUrl = URL.createObjectURL(imageFile);
+        // Check if it's a PDF
+        if (imageFile.type === 'application/pdf') {
+          setStatus('Loading PDF...');
+          
+          // Convert PDF to image
+          const arrayBuffer = await imageFile.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          
+          setStatus(`Processing PDF page 1 of ${pdf.numPages}...`);
+          
+          // Process first page (you can extend this to process all pages)
+          const page = await pdf.getPage(1);
+          const viewport = page.getViewport({ scale: 2.0 });
+          
+          // Create canvas to render PDF page
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          await page.render({
+            canvasContext: context!,
+            viewport: viewport,
+          }).promise;
+          
+          // Convert canvas to blob URL
+          const blob = await new Promise<Blob | null>((resolve) => {
+            canvas.toBlob(resolve);
+          });
+          
+          if (!blob) {
+            throw new Error('Failed to convert PDF page to image');
+          }
+          
+          imageUrl = URL.createObjectURL(blob);
+          shouldRevokeUrl = true;
+          
+          // If we have multiple pages, process them too
+          if (pdf.numPages > 1) {
+            setStatus(`Processing ${pdf.numPages} pages...`);
+            // For now, we'll just process the first page
+            // You can extend this to concatenate text from all pages
+          }
+        } else {
+          // Regular image file
+          imageUrl = URL.createObjectURL(imageFile);
+          shouldRevokeUrl = true;
+        }
 
-        setStatus('Processing image...');
+        setStatus('Processing with OCR...');
         const {
           data: { text },
-        } = await worker.recognize(imageUrl, {
+        } = await ocrWorker.recognize(imageUrl, {
           logger: (m: { status: string; progress: number }) => {
             if (m.status === 'recognizing text') {
               setProgress(Math.round(m.progress * 100));
@@ -52,8 +103,10 @@ export function OCRProcessor({
           },
         } as any);
 
-        await worker.terminate();
-        URL.revokeObjectURL(imageUrl);
+        await ocrWorker.terminate();
+        if (shouldRevokeUrl) {
+          URL.revokeObjectURL(imageUrl);
+        }
 
         setExtractedText(text);
         setStatus('Detecting question types...');
