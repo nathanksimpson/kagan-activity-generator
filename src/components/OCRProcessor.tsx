@@ -91,17 +91,12 @@ export function OCRProcessor({
           shouldRevokeUrl = true;
         }
 
-        setStatus('Processing with OCR...');
+        setStatus('Processing with OCR (this may take 30-60 seconds)...');
+        setProgress(50); // Show it's working
+        
         const {
           data: { text },
-        } = await ocrWorker.recognize(imageUrl, {
-          logger: (m: { status: string; progress: number }) => {
-            if (m.status === 'recognizing text') {
-              setProgress(Math.round(m.progress * 100));
-              setStatus(`Recognizing text... ${Math.round(m.progress * 100)}%`);
-            }
-          },
-        } as any);
+        } = await ocrWorker.recognize(imageUrl);
 
         await ocrWorker.terminate();
         if (shouldRevokeUrl) {
